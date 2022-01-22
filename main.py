@@ -6,156 +6,148 @@ from argparse import ArgumentParser
 import json
 from prettytable import PrettyTable
 
-argparser = ArgumentParser(description='Upbank API client')
-argparser.add_argument("mode", help="Mode of operation", choices=["payday", "balance"])
-args = argparser.parse_args()
 
-# globals
-WEEKLY_PAY = 0
-WEEKLY_RENT = 0
-DAILY_EXPENSES = ""
-RENT = ""
-SPLURGE = ""
-SMILE = ""
-EXTINGUISH = ""
-MOJO = ""
-MOJO_AMOUNT = 0
-GRIN = ""
-GROW = ""
+class Balancer:
+    def __init__(self):
+        # load api personal key from secrets.json
+        self.prev_accounts = {}
+        self.new_accounts = {}
+
+        f = open('secrets.json')
+        secrets = json.load(f)
+        client = Client(token=secrets['up_api_key'])
+
+        # setup configuration from config.json
+        f = open('config.json')
+        config = json.load(f)
+        self.WEEKLY_PAY = config['weekly_pay']
+        self.WEEKLY_RENT = config['weekly_rent']
+        self.DAILY_EXPENSES = config['daily_expenses']
+        self.GOING_OUT_AMOUNT = config['going_out']
+        self.RENT = config['rent']
+        self.SPLURGE = config['splurge']
+        self.SMILE = config['smile']
+        self.EXTINGUISH = config['extinguish']
+        self.MOJO = config['mojo']
+        self.MOJO_AMOUNT = config['mojo_amount']  # todo: get this from API
+        self.GRIN = config['grin']
+        self.GROW = config['grow']
+
+        # optionally check the token is valid
+        try:
+            user_id = client.ping()
+            print("Authorized: " + user_id)
+        except NotAuthorizedException:
+            print("The token is invalid")
+
+        accounts_list = list(client.accounts())
+        for account in accounts_list:
+            self.prev_accounts[account.name] = account.balance
+            self.new_accounts[account.name] = account.balance
+
+    def run(self, mode):
+        """payday"""
+        ### scenario 1 (payday - all empty)
+        # new_accounts["Spending"] = 0
+        # new_accounts["💸 BLOW/daily"] = 0
+        # new_accounts["✨ BLOW/splurge"] = 0
+        # new_accounts["💰 BLOW/smile"] = 0
+        # new_accounts["🧯 BLOW/extinguish"] = 0
+        # new_accounts["🚨 MOJO/main"] = 0
+        # new_accounts["📈 GROW/main"] = 0
+
+        """balance"""
+        ### scenario 2 (Projected Savings, MOJO EMPTY)
+        # prev_accounts["Spending"] = 23
+        # prev_accounts["💸 BLOW/daily"] = 161
+        # prev_accounts["✨ BLOW/splurge"] = 130
+        # new_accounts["✨ BLOW/splurge"] = 130
+        # prev_accounts["💰 BLOW/smile"] = 130
+        # new_accounts["💰 BLOW/smile"] = 130
+        # prev_accounts["🧯 BLOW/extinguish"] = 211
+        # prev_accounts["🚨 MOJO/main"] = 0
+        # prev_accounts["📈 GROW/main"] = 0
 
 
-# load api personal key from secrets.json
-f = open('secrets.json')
-data = json.load(f)
-client = Client(token=data['up_api_key'])
+        ### scenario 3 (Projected Savings, MOJO nearly full)
+        self.prev_accounts["Spending"] = 23
+        self.prev_accounts["💸 BLOW/daily"] = 161
+        self.prev_accounts["✨ BLOW/splurge"] = 130
+        self.new_accounts["✨ BLOW/splurge"] = 130
+        self.prev_accounts["💰 BLOW/smile"] = 130
+        self.new_accounts["💰 BLOW/smile"] = 130
+        self.prev_accounts["🧯 BLOW/extinguish"] = 211
+        self.prev_accounts["🚨 MOJO/main"] = 1950
+        self.prev_accounts["📈 GROW/main"] = 0
 
-# setup configuration from config.json
-f = open('config.json')
-data = json.load(f)
-WEEKLY_PAY = data['weekly_pay']
-WEEKLY_RENT = data['weekly_rent']
-DAILY_EXPENSES = data['daily_expenses']
-GOING_OUT_AMOUNT = data['going_out']
-RENT = data['rent']
-SPLURGE = data['splurge']
-SMILE = data['smile']
-EXTINGUISH = data['extinguish']
-MOJO = data['mojo']
-MOJO_AMOUNT = data['mojo_amount'] # todo: get this from API 
-GRIN = data['grin']
-GROW = data['grow']
+        # payday 
+        if mode == "payday":
+            self.prev_accounts["Spending"] += self.WEEKLY_PAY
 
-# optionally check the token is valid
-try:
-    user_id = client.ping()
-    print("Authorized: " + user_id)
-except NotAuthorizedException:
-    print("The token is invalid")
+            # calculate
+            ## 60% into DAILY_EXPENSES
+            self.new_accounts[self.DAILY_EXPENSES] += self.WEEKLY_PAY * 0.60
+            ## "GOING OUT" amount to spending
+            self.new_accounts["Spending"] += self.GOING_OUT_AMOUNT
+            self.new_accounts[self.DAILY_EXPENSES] -= self.GOING_OUT_AMOUNT
 
-accounts_list = list(client.accounts())
-prev_accounts = {}
-new_accounts = {}
-for account in accounts_list:
-    prev_accounts[account.name] = account.balance
-    new_accounts[account.name] = account.balance
+            ## 20% into EXTINGUISH
+            self.new_accounts[self.EXTINGUISH] += self.WEEKLY_PAY * 0.20
 
-"""payday"""
-### scenario 1 (payday - all empty)
-# new_accounts["Spending"] = 0
-# new_accounts["💸 BLOW/daily"] = 0
-# new_accounts["✨ BLOW/splurge"] = 0
-# new_accounts["💰 BLOW/smile"] = 0
-# new_accounts["🧯 BLOW/extinguish"] = 0
-# new_accounts["🚨 MOJO/main"] = 0
-# new_accounts["📈 GROW/main"] = 0
+            ## 10% into splurge
+            self.new_accounts[self.SPLURGE] += self.WEEKLY_PAY * 0.1
 
-"""balance"""
-### scenario 2 (Projected Savings, MOJO EMPTY)
-# prev_accounts["Spending"] = 23
-# prev_accounts["💸 BLOW/daily"] = 161
-# prev_accounts["✨ BLOW/splurge"] = 130
-# new_accounts["✨ BLOW/splurge"] = 130
-# prev_accounts["💰 BLOW/smile"] = 130
-# new_accounts["💰 BLOW/smile"] = 130
-# prev_accounts["🧯 BLOW/extinguish"] = 211
-# prev_accounts["🚨 MOJO/main"] = 0
-# prev_accounts["📈 GROW/main"] = 0
+            ## 10% into smile (investments)
+            self.new_accounts[self.SMILE] += self.WEEKLY_PAY * 0.1
 
-### scenario 3 (Projected Savings, MOJO nearly full)
-prev_accounts["Spending"] = 23
-prev_accounts["💸 BLOW/daily"] = 161
-prev_accounts["✨ BLOW/splurge"] = 130
-new_accounts["✨ BLOW/splurge"] = 130
-prev_accounts["💰 BLOW/smile"] = 130
-new_accounts["💰 BLOW/smile"] = 130
-prev_accounts["🧯 BLOW/extinguish"] = 211
-prev_accounts["🚨 MOJO/main"] = 1950
-prev_accounts["📈 GROW/main"] = 0
+            # print result & changes
+            x = PrettyTable()
+            x.field_names = ["Account", "Before", "After", "Change"]
 
-# payday 
-if args.mode == "payday":
-    prev_accounts["Spending"] += WEEKLY_PAY
+            for account in self.new_accounts:
+                change = self.new_accounts[account] - self.prev_accounts[account]
+                x.add_row([account, str(self.prev_accounts[account]), str(self.new_accounts[account]), str(change)])
 
-    # calculate
-    ## 60% into DAILY_EXPENSES
-    new_accounts[DAILY_EXPENSES] += WEEKLY_PAY * 0.60
-    ## "GOING OUT" amount to spending
-    new_accounts["Spending"] += GOING_OUT_AMOUNT
-    new_accounts[DAILY_EXPENSES] -= GOING_OUT_AMOUNT
+            print(x)
 
-    ## 20% into EXTINGUISH
-    new_accounts[EXTINGUISH] += WEEKLY_PAY * 0.20
-
-    ## 10% into splurge
-    new_accounts[SPLURGE] += WEEKLY_PAY * 0.1
-
-    ## 10% into smile (investments)
-    new_accounts[SMILE] += WEEKLY_PAY * 0.1
-
-    # print result & changes
-    x = PrettyTable()
-    x.field_names = ["Account", "Before", "After", "Change"]
-
-    for account in new_accounts:
-        change = new_accounts[account] - prev_accounts[account]
-        x.add_row([account, str(prev_accounts[account]), str(new_accounts[account]), str(change)])
-
-    print(x)
-
-# EOW balance
-if args.mode == "balance":
-    """any unused cash in extinguish / daily expenses -> mojo -> grow"""
-    # collect unused cash
-    balanced_cash = 0
-    balanced_cash += prev_accounts[EXTINGUISH]
-    new_accounts[EXTINGUISH] = 0
-    balanced_cash += prev_accounts[DAILY_EXPENSES]
-    new_accounts[DAILY_EXPENSES] = 0
-    balanced_cash += prev_accounts["Spending"]
-    new_accounts["Spending"] = 0
-    # fill mojo first!
-    if prev_accounts[MOJO] < MOJO_AMOUNT:
-        diff = MOJO_AMOUNT - prev_accounts[MOJO]
-        if diff <= balanced_cash:
-            new_accounts[MOJO] += diff
-            balanced_cash -= diff
-        else:
-            new_accounts[MOJO] += balanced_cash
+        # EOW balance
+        if mode == "balance":
+            """any unused cash in extinguish / daily expenses -> mojo -> grow"""
+            # collect unused cash
             balanced_cash = 0
-            print("Not enough cash to fill MOJO!")
-    # fill grow with whatever remains!
-    new_accounts[GROW] += balanced_cash
+            balanced_cash += self.prev_accounts[self.EXTINGUISH]
+            self.new_accounts[self.EXTINGUISH] = 0
+            balanced_cash += self.prev_accounts[self.DAILY_EXPENSES]
+            self.new_accounts[self.DAILY_EXPENSES] = 0
+            balanced_cash += self.prev_accounts["Spending"]
+            self.new_accounts["Spending"] = 0
+            # fill mojo first!
+            if self.prev_accounts[self.MOJO] < self.MOJO_AMOUNT:
+                diff = self.MOJO_AMOUNT - self.prev_accounts[self.MOJO]
+                if diff <= balanced_cash:
+                    self.new_accounts[self.MOJO] += diff
+                    balanced_cash -= diff
+                else:
+                    self.new_accounts[self.MOJO] += balanced_cash
+                    balanced_cash = 0
+                    print("Not enough cash to fill MOJO!")
+            # fill grow with whatever remains!
+            self.new_accounts[self.GROW] += balanced_cash
 
-    # print result & changes
-    x = PrettyTable()
-    x.field_names = ["Account", "Before", "After", "Change"]
-    for account in new_accounts:
-        change = new_accounts[account] - prev_accounts[account]
-        x.add_row([account, str(prev_accounts[account]), str(new_accounts[account]), str(change)])
+            # print result & changes
+            x = PrettyTable()
+            x.field_names = ["Account", "Before", "After", "Change"]
+            for account in self.new_accounts:
+                change = self.new_accounts[account] - self.prev_accounts[account]
+                x.add_row([account, str(self.prev_accounts[account]), str(self.new_accounts[account]), str(change)])
 
-    print(x)
+            print(x)
 
 
+if __name__ == "__main__":
+    argparser = ArgumentParser(description='Upbank API client')
+    argparser.add_argument("mode", help="Mode of operation", choices=["payday", "balance"])
+    args = argparser.parse_args()
 
-# for key in new_accounts.keys():
-    # print(key, new_accounts[key])
+    b = Balancer()
+    b.run(args.mode)
