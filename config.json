@@ -1,12 +1,13 @@
 {
     "weekly_pay": 1346.15,
     "weekly_rent": 400,
-    "daily_expenses": "BLOW/daily",
-    "rent": "BLOW/rent",
-    "splurge": "BLOW/splurge",
-    "smile": "BLOW/smile",
-    "extinguish":"BLOW/extinguish",
-    "mojo": "MOJO/main",
-    "grin": "MOJO/grin",
-    "grow": "GROW/main"
+    "daily_expenses": "💸 BLOW/daily",
+    "rent": "🚪 BLOW/rent",
+    "splurge": "✨ BLOW/splurge",
+    "smile": "💰 BLOW/smile",
+    "extinguish":"🧯 BLOW/extinguish",
+    "mojo": "🚨 MOJO/main",
+    "mojo_amount": 2000,
+    "grin": "😁 MOJO/grin",
+    "grow": "📈 GROW/main"
 }
