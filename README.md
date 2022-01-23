@@ -10,5 +10,5 @@ Implementing Barefoot Investor's Model for Up Banking
 ```
 2. Edit the config to your liking, and change the names of your bank accounts to follow the [barefoot investor scheme](https://www.pocketsmith.com/blog/the-barefoot-investor-buckets-and-accounts-explained/). 
 Samples are included already.
-
-3. Run `python3 main.py [payday/balance]` 
+3. Install requirements with `pip install -r requirements.txt`
+4. Run `python3 balancer.py [payday/balance]`
